@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard · UPI Transactions</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ✅ FIREBASE CONFIG — Same config as pay.html -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        getDocs,
+        query,
+        orderBy,
+        where,
+        Timestamp,
+      } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+      // 🔴 REPLACE THIS with your Firebase config
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyAt8EnMuLNYiORy8P2ybb4ieDX_Y-srqzg",
+        authDomain: "upi-payments-f7e42.firebaseapp.com",
+        projectId: "upi-payments-f7e42",
+        storageBucket: "upi-payments-f7e42.firebasestorage.app",
+        messagingSenderId: "369530473141",
+        appId: "1:369530473141:web:0c37814aff7637a2730cfc",
+        measurementId: "G-WDKFC27Y21",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      window._db = db;
+      window._fbCol = collection;
+      window._fbGetDocs = getDocs;
+      window._fbQuery = query;
+      window._fbOrderBy = orderBy;
+      window._fbWhere = where;
+      window._fbTimestamp = Timestamp;
+      window._fbReady = true;
+      window.dispatchEvent(new Event("fb-ready"));
+    </script>
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0d0d14;
+        --surface: #15151f;
+        --surface2: #1e1e2a;
+        --surface3: #252535;
+        --border: rgba(255, 255, 255, 0.07);
+        --text: #f0eff8;
+        --muted: rgba(240, 239, 248, 0.45);
+        --gold: #e8b84b;
+        --gold2: #c8922a;
+        --accent: #5b2eff;
+        --green: #2eff9a;
+        --red: #ff4a4a;
+        --blue: #4ab8ff;
+      }
+      html,
+      body {
+        min-height: 100vh;
+        background: var(--bg);
+        font-family: "DM Sans", sans-serif;
+        color: var(--text);
+      }
+
+      /* ── LOGIN SCREEN ── */
+      .login-screen {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .login-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 360px;
+        text-align: center;
+      }
+      .login-box h1 {
+        font-family: "Syne", sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .login-box p {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 1.5rem;
+      }
+      .login-box input {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 16px;
+        outline: none;
+        margin-bottom: 12px;
+        letter-spacing: 0.15em;
+        font-family: "DM Sans", sans-serif;
+      }
+      .login-box input:focus {
+        border-color: var(--gold);
+      }
+      .login-btn {
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, var(--gold2), var(--gold));
+        color: #1a1108;
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .login-btn:hover {
+        opacity: 0.88;
+      }
+      .login-error {
+        color: var(--red);
+        font-size: 12px;
+        margin-top: 8px;
+        display: none;
+      }
+
+      /* ── DASHBOARD ── */
+      .dashboard {
+        display: none;
+      }
+      .topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--gold2), var(--gold));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .logo svg {
+        width: 18px;
+        height: 18px;
+        fill: #1a1108;
+      }
+      .topbar h1 {
+        font-family: "Syne", sans-serif;
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s infinite;
+      }
+      .live-label {
+        font-size: 12px;
+        color: var(--green);
+      }
+      .logout-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .logout-btn:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        color: var(--text);
+      }
+      .refresh-btn {
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: "DM Sans", sans-serif;
+      }
+      .refresh-btn:hover {
+        background: var(--surface3);
+      }
+
+      .content {
+        padding: 1.5rem;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      /* Stats grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 1.5rem;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent-color, var(--gold));
+      }
+      .stat-label {
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .stat-value {
+        font-family: "Syne", sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+      .stat-sub {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .stat-icon {
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        font-size: 22px;
+        opacity: 0.15;
+      }
+
+      /* Filter bar */
+      .filter-bar {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .filter-bar label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .filter-bar select,
+      .filter-bar input {
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+        font-family: "DM Sans", sans-serif;
+      }
+      .filter-bar select:focus,
+      .filter-bar input:focus {
+        border-color: var(--gold);
+      }
+      .filter-bar button {
+        padding: 7px 16px;
+        border-radius: 8px;
+        border: none;
+        background: var(--gold2);
+        color: #1a1108;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+      }
+
+      /* Table */
+      .table-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .table-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .table-header h2 {
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .table-header span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead tr {
+        background: var(--surface2);
+      }
+      th {
+        padding: 10px 16px;
+        text-align: left;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+      tbody tr {
+        border-top: 1px solid var(--border);
+        transition: background 0.15s;
+      }
+      tbody tr:hover {
+        background: var(--surface2);
+      }
+      td {
+        padding: 12px 16px;
+        font-size: 13px;
+      }
+      .td-amount {
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gold);
+      }
+      .td-date {
+        color: var(--muted);
+      }
+      .td-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .status-qr {
+        background: rgba(91, 46, 255, 0.15);
+        color: #9b7aff;
+      }
+      .status-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      /* Monthly chart bars */
+      .chart-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+      }
+      .chart-title {
+        font-family: "Syne", sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+      .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 120px;
+      }
+      .bar-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+      }
+      .bar {
+        width: 100%;
+        border-radius: 4px 4px 0 0;
+        background: linear-gradient(to top, var(--gold2), var(--gold));
+        min-height: 4px;
+        transition: height 0.5s ease;
+      }
+      .bar-label {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .bar-amt {
+        font-size: 9px;
+        color: var(--gold);
+        font-weight: 600;
+      }
+
+      /* Empty state */
+      .empty-state {
+        padding: 3rem;
+        text-align: center;
+        color: var(--muted);
+      }
+      .empty-state svg {
+        opacity: 0.2;
+        margin-bottom: 1rem;
+      }
+
+      /* Loading */
+      .loading {
+        padding: 3rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid var(--border);
+        border-top-color: var(--gold);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin: 0 auto 1rem;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* Responsive */
+      @media (max-width: 640px) {
+        .content {
+          padding: 1rem;
+        }
+        .stat-value {
+          font-size: 22px;
+        }
+        table td:nth-child(3),
+        table th:nth-child(3) {
+          display: none;
+        }
+        .filter-bar {
+          gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- LOGIN SCREEN -->
+    <div class="login-screen" id="login-screen">
+      <div class="login-box">
+        <div style="font-size: 32px; margin-bottom: 12px">🔐</div>
+        <h1>Admin Dashboard</h1>
+        <p>Enter password to view transactions</p>
+        <input
+          type="password"
+          id="pwd-input"
+          placeholder="Password"
+          onkeydown="if (event.key === 'Enter') checkPwd();"
+        />
+        <button class="login-btn" onclick="checkPwd()">Enter Dashboard</button>
+        <div class="login-error" id="login-error">
+          Incorrect password. Try again.
+        </div>
+        <div style="margin-top: 1rem; font-size: 11px; color: var(--muted)">
+          Default password: <code style="color: var(--gold)">admin123</code
+          ><br />
+          Change it in the script below
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="dashboard" id="dashboard">
+      <div class="topbar">
+        <div class="topbar-left">
+          <div class="logo">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"
+              />
+            </svg>
+          </div>
+          <h1>UPI Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <div class="live-dot"></div>
+          <span class="live-label">Live</span>
+          <button class="refresh-btn" onclick="loadData()">⟳ Refresh</button>
+          <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card" style="--accent-color: #e8b84b">
+            <div class="stat-icon">₹</div>
+            <div class="stat-label">Total Collected</div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-sub">All time</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #2eff9a">
+            <div class="stat-icon">📊</div>
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value" id="stat-count">—</div>
+            <div class="stat-sub">QR generated</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #4ab8ff">
+            <div class="stat-icon">📅</div>
+            <div class="stat-label">This Month</div>
+            <div class="stat-value" id="stat-month">—</div>
+            <div class="stat-sub" id="stat-month-label">—</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #ff4a4a">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-label">Today</div>
+            <div class="stat-value" id="stat-today">—</div>
+            <div class="stat-sub" id="stat-today-label">—</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #9b7aff">
+            <div class="stat-icon">💰</div>
+            <div class="stat-label">Avg Transaction</div>
+            <div class="stat-value" id="stat-avg">—</div>
+            <div class="stat-sub">Per payment</div>
+          </div>
+          <div class="stat-card" style="--accent-color: #ff9f4a">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-label">Largest Payment</div>
+            <div class="stat-value" id="stat-max">—</div>
+            <div class="stat-sub">Single transaction</div>
+          </div>
+        </div>
+
+        <!-- Monthly Chart -->
+        <div class="chart-section">
+          <div class="chart-title">Monthly Overview</div>
+          <div class="bar-chart" id="bar-chart">
+            <div class="loading">
+              <div class="spinner"></div>
+              Loading chart…
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <label>Filter:</label>
+          <select id="filter-month" onchange="applyFilter()">
+            <option value="">All months</option>
+          </select>
+          <select id="filter-amount" onchange="applyFilter()">
+            <option value="">All amounts</option>
+            <option value="1500">₹1,500</option>
+            <option value="3000">₹3,000</option>
+            <option value="4000">₹4,000</option>
+          </select>
+          <input
+            type="date"
+            id="filter-date"
+            onchange="applyFilter()"
+            placeholder="Filter by date"
+          />
+          <button onclick="clearFilters()">Clear</button>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="table-wrap">
+          <div class="table-header">
+            <h2>Transactions</h2>
+            <span id="table-count">Loading…</span>
+          </div>
+          <div id="table-body">
+            <div class="loading">
+              <div class="spinner"></div>
+              Fetching transactions…
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── PASSWORD ─────────────────────────────────────────────
+      const ADMIN_PASSWORD = "admin123"; // 🔴 CHANGE THIS
+
+      function checkPwd() {
+        const v = document.getElementById("pwd-input").value;
+        if (v === ADMIN_PASSWORD) {
+          document.getElementById("login-screen").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+          sessionStorage.setItem("admin_auth", "1");
+          initDashboard();
+        } else {
+          document.getElementById("login-error").style.display = "block";
+          document.getElementById("pwd-input").value = "";
+        }
+      }
+
+      function logout() {
+        sessionStorage.removeItem("admin_auth");
+        document.getElementById("dashboard").style.display = "none";
+        document.getElementById("login-screen").style.display = "flex";
+      }
+
+      // Auto-login if session exists
+      window.addEventListener("DOMContentLoaded", () => {
+        if (sessionStorage.getItem("admin_auth") === "1") {
+          document.getElementById("login-screen").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+          initDashboard();
+        }
+      });
+
+      // ── DASHBOARD LOGIC ───────────────────────────────────────
+      let allTransactions = [];
+
+      function initDashboard() {
+        if (window._fbReady) loadData();
+        else window.addEventListener("fb-ready", loadData);
+      }
+
+      async function loadData() {
+        try {
+          const col = window._fbCol(window._db, "transactions");
+          const q = window._fbQuery(
+            col,
+            window._fbOrderBy("timestamp", "desc"),
+          );
+          const snap = await window._fbGetDocs(q);
+          allTransactions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          updateStats();
+          updateChart();
+          populateMonthFilter();
+          renderTable(allTransactions);
+        } catch (e) {
+          console.error(e);
+          document.getElementById("table-body").innerHTML = `
+      <div class="empty-state">
+        <div style="font-size:14px;color:#ff4a4a;">⚠ Firebase not configured yet.</div>
+        <div style="margin-top:8px;font-size:12px;">Add your Firebase config to both HTML files.</div>
+      </div>`;
+          // Show demo data for preview
+          loadDemoData();
+        }
+      }
+
+      function loadDemoData() {
+        const now = new Date();
+        const demo = [
+          {
+            id: "d1",
+            amount: 1500,
+            date: now.toISOString().split("T")[0],
+            month: now.toISOString().slice(0, 7),
+            status: "qr_generated",
+            timestamp: { toDate: () => now },
+          },
+          {
+            id: "d2",
+            amount: 3000,
+            date: now.toISOString().split("T")[0],
+            month: now.toISOString().slice(0, 7),
+            status: "qr_generated",
+            timestamp: { toDate: () => new Date(now - 3600000) },
+          },
+          {
+            id: "d3",
+            amount: 4000,
+            date: new Date(now - 86400000).toISOString().split("T")[0],
+            month: now.toISOString().slice(0, 7),
+            status: "qr_generated",
+            timestamp: { toDate: () => new Date(now - 86400000) },
+          },
+          {
+            id: "d4",
+            amount: 1500,
+            date: new Date(now - 86400000).toISOString().split("T")[0],
+            month: now.toISOString().slice(0, 7),
+            status: "qr_generated",
+            timestamp: { toDate: () => new Date(now - 172800000) },
+          },
+        ];
+        allTransactions = demo;
+        updateStats();
+        updateChart();
+        populateMonthFilter();
+        renderTable(demo);
+      }
+
+      function updateStats() {
+        const txs = allTransactions;
+        const total = txs.reduce((s, t) => s + (t.amount || 0), 0);
+        const today = new Date().toISOString().split("T")[0];
+        const thisMonth = new Date().toISOString().slice(0, 7);
+        const todayTxs = txs.filter((t) => t.date === today);
+        const monthTxs = txs.filter((t) => t.month === thisMonth);
+        const avg = txs.length ? Math.round(total / txs.length) : 0;
+        const max = txs.length ? Math.max(...txs.map((t) => t.amount || 0)) : 0;
+
+        const fmt = (v) => "₹" + Math.round(v).toLocaleString("en-IN");
+        document.getElementById("stat-total").textContent = fmt(total);
+        document.getElementById("stat-count").textContent = txs.length;
+        document.getElementById("stat-month").textContent = fmt(
+          monthTxs.reduce((s, t) => s + (t.amount || 0), 0),
+        );
+        document.getElementById("stat-month-label").textContent =
+          monthTxs.length + " transactions";
+        document.getElementById("stat-today").textContent = fmt(
+          todayTxs.reduce((s, t) => s + (t.amount || 0), 0),
+        );
+        document.getElementById("stat-today-label").textContent =
+          todayTxs.length + " transactions";
+        document.getElementById("stat-avg").textContent = fmt(avg);
+        document.getElementById("stat-max").textContent = fmt(max);
+      }
+
+      function updateChart() {
+        // Group by month
+        const monthly = {};
+        allTransactions.forEach((t) => {
+          const m = t.month || "?";
+          if (!monthly[m]) monthly[m] = { total: 0, count: 0 };
+          monthly[m].total += t.amount || 0;
+          monthly[m].count++;
+        });
+        const months = Object.keys(monthly).sort().slice(-6);
+        const maxVal = Math.max(...months.map((m) => monthly[m].total), 1);
+
+        const chart = document.getElementById("bar-chart");
+        if (!months.length) {
+          chart.innerHTML =
+            '<div style="color:var(--muted);font-size:12px;padding:1rem;">No data yet</div>';
+          return;
+        }
+
+        chart.innerHTML = months
+          .map((m) => {
+            const pct = Math.max(4, (monthly[m].total / maxVal) * 100);
+            const label = m.slice(5); // "03" from "2026-03"
+            const months_short = [
+              "",
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ];
+            const mLabel = months_short[parseInt(label)] || label;
+            return `<div class="bar-col">
+      <div class="bar-amt">₹${Math.round(monthly[m].total / 1000)}k</div>
+      <div class="bar" style="height:${pct}%"></div>
+      <div class="bar-label">${mLabel}</div>
+    </div>`;
+          })
+          .join("");
+      }
+
+      function populateMonthFilter() {
+        const months = [
+          ...new Set(allTransactions.map((t) => t.month).filter(Boolean)),
+        ]
+          .sort()
+          .reverse();
+        const sel = document.getElementById("filter-month");
+        sel.innerHTML =
+          '<option value="">All months</option>' +
+          months
+            .map((m) => {
+              const [y, mo] = m.split("-");
+              const names = [
+                "",
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
+              ];
+              return `<option value="${m}">${names[parseInt(mo)]} ${y}</option>`;
+            })
+            .join("");
+      }
+
+      function applyFilter() {
+        const month = document.getElementById("filter-month").value;
+        const amount = document.getElementById("filter-amount").value;
+        const date = document.getElementById("filter-date").value;
+        let filtered = allTransactions;
+        if (month) filtered = filtered.filter((t) => t.month === month);
+        if (amount) filtered = filtered.filter((t) => t.amount == amount);
+        if (date) filtered = filtered.filter((t) => t.date === date);
+        renderTable(filtered);
+      }
+
+      function clearFilters() {
+        document.getElementById("filter-month").value = "";
+        document.getElementById("filter-amount").value = "";
+        document.getElementById("filter-date").value = "";
+        renderTable(allTransactions);
+      }
+
+      function renderTable(txs) {
+        document.getElementById("table-count").textContent =
+          txs.length + " records";
+        if (!txs.length) {
+          document.getElementById("table-body").innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="var(--text)"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6zm0 4h8v2H6z"/></svg>
+        <div>No transactions found</div>
+      </div>`;
+          return;
+        }
+        const rows = txs
+          .map((t) => {
+            const ts = t.timestamp?.toDate
+              ? t.timestamp.toDate()
+              : new Date(t.date);
+            const dateStr = ts.toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+            const timeStr = ts.toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return `<tr>
+      <td class="td-amount">₹${(t.amount || 0).toLocaleString("en-IN")}</td>
+      <td class="td-date">${dateStr}</td>
+      <td class="td-date">${timeStr}</td>
+      <td><span class="td-status status-qr"><span class="status-dot"></span>QR Generated</span></td>
+      <td class="td-date" style="font-size:11px;color:var(--muted)">${t.id.slice(0, 8)}…</td>
+    </tr>`;
+          })
+          .join("");
+        document.getElementById("table-body").innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Amount</th><th>Date</th><th>Time</th><th>Status</th><th>ID</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+      }
+    </script>
+  </body>
+</html>
